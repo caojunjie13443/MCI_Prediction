@@ -1,0 +1,15 @@
+audio_test_file: D:/UserData/MCI/PROCESSED_DATA/clean_audio_1683.csv
+wav_audio_dir: D:/UserData/MCI/audio_wav/SELECT_1683_wavFile/
+pretrained_model_dir: ./pretrained_model/
+fintuned_model_dir: ./fintuned_model/
+language_test_id: 1683
+seed: 42
+
+
+replicate_time: 2
+model: resnet18
+use_gpu: true
+epochs: 2
+batch_size: 8
+lr: 1e-6
+eval_every_steps: 5
