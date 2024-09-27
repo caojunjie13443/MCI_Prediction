@@ -1,7 +1,7 @@
 #! /bin/bash
 
-cd /home/junjie/MCI_Prediction
-PWD=/home/junjie/MCI_Prediction
+cd /home/junjie/MCI_Prediction_hub
+PWD=/home/junjie/MCI_Prediction_hub
 pretrained_model="resnet101"
 test_id=("1683" "1777" "1828")
 
