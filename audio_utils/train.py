@@ -23,7 +23,7 @@ def train_model(model, dataloaders, configs):
         param.requires_grad = True
 
     # 创建语言测试对应的文件夹  fintuned_model/language_test_id/model_type/
-    fintuned_model_id_dir = configs.fintuned_model_dir + str(configs.language_test_id) + '/' + configs.model + '/'
+    fintuned_model_id_dir = configs.fintuned_model_dir + str(configs.language_test_id) + '_' + configs.metric + '/' + configs.model + '/'
     os.makedirs(fintuned_model_id_dir, exist_ok=True)
     # 存储ckpts文件, 路径名: dir/test_id/model_seed.pt
     model_save_path = os.path.join(fintuned_model_id_dir, (configs.model + f'_{configs.seed}.pt'))
@@ -31,10 +31,10 @@ def train_model(model, dataloaders, configs):
     train_file_path = os.path.join(fintuned_model_id_dir, f'train_{configs.seed}.txt')
     eval_file_path = os.path.join(fintuned_model_id_dir, f'eval.txt')
     train_writer = open(train_file_path, 'w', encoding='utf-8')
-    eval_writer = open(eval_file_path, 'a', encoding='utf-8')
+    eval_writer = open(eval_file_path, 'w', encoding='utf-8')
 
     total_step = len(dataloaders['train'])  # 每轮的step总数
-    best_eval_acc, global_step = 0, 0  # z最优准确率、总step
+    best_eval_metric, global_step = 0, 0  # z最优准确率、总step
     best_ckpt = None  # 保存最优ckpt, 用于测试集测试
 
     for epoch in range(1, n_epochs+1):
@@ -78,10 +78,19 @@ def train_model(model, dataloaders, configs):
                     val_precision = true_positive / pred_positive if pred_positive else 0
                     val_f1 = 2 * (val_recall * val_precision) / (val_recall + val_precision) if (val_recall + val_precision) else 0
 
-                    if val_acc > best_eval_acc:
-                        best_eval_acc = val_acc
-                        eval_writer.write(f'Seed: {configs.seed}, Epoch: {epoch}/{n_epochs}, Step: {batch_idx}/{total_step}, global_step: {global_step}\n')
-                        eval_writer.write(f'acc:{val_acc:.4f}, recall:{val_recall:.4f}, precision:{val_precision:.4f}, f1-score:{val_f1:.4f}\n')
+                    if configs.metric == 'recall':
+                        val_metric = val_recall
+                    elif configs.metric == 'precision':
+                        val_metric = val_precision
+                    elif configs.metric == 'accuracy':
+                        val_metric = val_acc
+                    elif configs.metric == 'f1':
+                        val_metric = val_f1
+
+                    if val_metric > best_eval_metric:
+                        best_eval_metric = val_metric
+                        eval_writer.write(f'Epoch: {epoch}/{n_epochs}, Step: {batch_idx}/{total_step}, global_step: {global_step}, selection_metric: {configs.metric}\n')
+                        eval_writer.write(f'seed: {configs.seed}, acc:{val_acc:.4f}, recall:{val_recall:.4f}, precision:{val_precision:.4f}, f1-score:{val_f1:.4f}\n')
                         eval_writer.write('\n')
                         best_ckpt = copy.deepcopy(model)
                         torch.save(model, model_save_path)

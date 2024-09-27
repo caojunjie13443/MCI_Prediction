@@ -1,15 +1,16 @@
-audio_test_file: D:/UserData/MCI/PROCESSED_DATA/clean_audio_1683.csv
-wav_audio_dir: D:/UserData/MCI/audio_wav/SELECT_1683_wavFile/
-pretrained_model_dir: ./pretrained_model/
+audio_test_file: /home/junjie/DataSet/MCI/PROCESSED_DATA/clean_audio_
+wav_audio_dir: /home/junjie/DataSet/MCI/audio_wav/SELECT_
+pretrained_model_dir: /home/junjie/ckpts/
 fintuned_model_dir: ./fintuned_model/
-language_test_id: 1683
-seed: 42
+language_test_id: 0
+seed: 420
 
 
-replicate_time: 2
-model: resnet18
+replicate_time: 20
+model: resnet101  # [resnet18, resnet50, resnet101, alexnet, vgg16]
 use_gpu: true
-epochs: 2
+epochs: 20
 batch_size: 8
 lr: 1e-6
-eval_every_steps: 5
+eval_every_steps: 2
+metric: recall  # [accuracy, recall, precision, f1]

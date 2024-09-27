@@ -4,13 +4,13 @@ import random
 import collections
 import gc
 import os
+import argparse
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torchvision
-import torchmetrics
 from torch.utils.data import random_split, Subset
 from torch.utils.tensorboard import SummaryWriter
 from sklearn import datasets, metrics, model_selection, svm
@@ -23,6 +23,16 @@ from audio_utils.predict import OutputPred
 from audio_utils.train import train_model
 from model_utils.config_utils import load_model_configs
 from model_utils.random_seed import setup_seed
+
+
+def get_args():
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument('--lang_id', type=int, default=0, help='Set Language Test ID')
+    parser.add_argument('--pretrained_model', type=str, default="", help='Pretrained_Model')
+
+    args = parser.parse_args()
+
+    return args
 
 
 def load_dataset(configs):
@@ -55,12 +65,13 @@ def load_dataset(configs):
                                     shuffle=False,
                                     num_workers=0) 
     }
+    print("End Loading Data")
 
     return dataloaders
 
 
 def finetune_pretrain_model(dataloaders, configs):
-    assert configs.model in ["resnet18", "resnet50", "resnet101", "alexnet", "vgg"]
+    assert configs.model in ["resnet18", "resnet50", "resnet101", "alexnet", "vgg16"]
 
     if 'resnet' in configs.model:
         if configs.model == "resnet18":
@@ -71,7 +82,7 @@ def finetune_pretrain_model(dataloaders, configs):
             model.load_state_dict(torch.load(configs.pretrained_model_dir + 'resnet50-0676ba61.pth'))
         elif configs.model == "resnet101":
             model = torchvision.models.resnet101(weights=None)
-            model.load_state_dict(torch.load(configs.pretrained_model_dir + 'resnet18-f37072fd.pth'))
+            model.load_state_dict(torch.load(configs.pretrained_model_dir + 'resnet101-63fe2227.pth'))
         # 修改输入shape和输出shape
         model.conv1 = nn.Conv2d(3, 64, kernel_size=(7, 7), padding=(3, 3), bias=False)
         num_ftrs = model.fc.in_features
@@ -139,18 +150,39 @@ if __name__=='__main__':
     torch.cuda.empty_cache()
     gc.collect()
 
-    config_file = "./configs/configs.yml"
+    args = get_args()
+    if not os.path.exists("./configs/configs_"+ args.pretrained_model + ".yml"):  # 没有可使用的配置文件
+        source_file = open("./configs/configs.yml", mode='r', encoding='utf-8')  # 读取源配置文件
+        sink_file = open("./configs/configs_"+ args.pretrained_model + ".yml", mode='w', encoding='utf-8')
+        for line in source_file.readlines():
+            line = line.strip()
+            if 'model: ' in line:
+                line = 'model: ' + args.pretrained_model
+            sink_file.write(line)
+            sink_file.write('\n')
+        source_file.close()
+        sink_file.close()
+
+    config_file = "./configs/configs_"+ args.pretrained_model + ".yml"  # 已有同一预训练模型的配置文件存在，直接使用，避免受并行实验的配置文件影响
+
     configs = load_model_configs(config_file, 'yml')
     assert configs.replicate_time > 0
+
+    configs.language_test_id = args.lang_id
+    print(f'lang_id: {configs.language_test_id}')
+    configs.audio_test_file = configs.audio_test_file + str(configs.language_test_id) + '.csv'
+    configs.wav_audio_dir = configs.wav_audio_dir + str(configs.language_test_id) + '_wavFile/'
+    print(f'audio_test_file: {configs.audio_test_file}')
 
     for i in range(configs.replicate_time):
         configs.seed += 1
         setup_seed(configs.seed)  # 设置随机种子
+        print(f'random_seed: {configs.seed}')
         dataloaders = load_dataset(configs)  # 读取数据集
 
         best_fituned_model = finetune_pretrain_model(dataloaders, configs)  # 训练最优微调模型
 
-        fintuned_model_id_dir = configs.fintuned_model_dir + str(configs.language_test_id) + '/' + configs.model + '/'
+        fintuned_model_id_dir = configs.fintuned_model_dir + str(configs.language_test_id) + '_' + configs.metric + '/' + configs.model + '/'
         test_file_path = os.path.join(fintuned_model_id_dir, f'test.txt')
         pred_writer = open(test_file_path, 'a', encoding='utf-8')
 
